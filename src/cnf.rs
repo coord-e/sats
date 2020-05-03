@@ -81,7 +81,7 @@ impl CNF {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Clause {
     literals: HashSet<Literal>,
 }
@@ -127,8 +127,12 @@ impl Clause {
         self.literals.is_empty()
     }
 
+    pub fn is_unit(&self) -> bool {
+        self.literals.len() == 1
+    }
+
     pub fn unit(&self) -> Option<&Literal> {
-        if self.literals.len() == 1 {
+        if self.is_unit() {
             Some(self.literals.iter().next().unwrap())
         } else {
             None

@@ -1,21 +1,29 @@
-use std::collections::{hash_map, HashMap, HashSet};
-use std::iter::FromIterator;
+use std::collections::{hash_map::Values, HashMap, HashSet};
+use std::iter::{Chain, FromIterator};
+use std::{fmt, string};
 
 use crate::cnf::{Clause, Literal};
 
+use itertools::Itertools;
 use log::error;
 
 #[derive(Debug, Clone)]
 pub struct Clauses {
     clauses: HashMap<ID, Clause>,
+    unit_clauses: HashMap<ID, Clause>,
+    empty_clauses: HashMap<ID, Clause>,
     table: Table,
 }
 
 impl<'a> IntoIterator for &'a Clauses {
     type Item = &'a Clause;
-    type IntoIter = hash_map::Values<'a, ID, Clause>;
+    type IntoIter =
+        Chain<Chain<Values<'a, ID, Clause>, Values<'a, ID, Clause>>, Values<'a, ID, Clause>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.clauses.values()
+        self.clauses
+            .values()
+            .chain(self.unit_clauses.values())
+            .chain(self.empty_clauses.values())
     }
 }
 
@@ -29,17 +37,30 @@ impl FromIterator<Clause> for Clauses {
         let (lower, upper) = iter.size_hint();
         let initial_capacity = upper.unwrap_or(lower);
         let mut clauses = HashMap::with_capacity(initial_capacity);
+        let mut empty_clauses = HashMap::with_capacity(initial_capacity);
+        let mut unit_clauses = HashMap::with_capacity(initial_capacity);
         let mut table = Table::with_capacity(initial_capacity);
 
-        for c in iter {
-            let id = ID::new(clauses.len());
+        for (i, c) in iter.enumerate() {
+            let id = ID::new(i);
             for l in c.literals() {
                 table.register(l, id);
             }
-            clauses.insert(id, c);
+            if c.is_empty() {
+                empty_clauses.insert(id, c);
+            } else if c.is_unit() {
+                unit_clauses.insert(id, c);
+            } else {
+                clauses.insert(id, c);
+            }
         }
 
-        let cls = Clauses { clauses, table };
+        let cls = Clauses {
+            clauses,
+            empty_clauses,
+            unit_clauses,
+            table,
+        };
         debug_assert!(cls.check_sanity());
         cls
     }
@@ -61,7 +82,7 @@ impl Clauses {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.clauses.is_empty()
+        self.clauses.is_empty() && self.unit_clauses.is_empty() && self.empty_clauses.is_empty()
     }
 
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
@@ -72,18 +93,33 @@ impl Clauses {
         self.table.len()
     }
 
+    fn contains_id(&self, id: ID) -> bool {
+        self.clauses.contains_key(&id)
+            || self.unit_clauses.contains_key(&id)
+            || self.empty_clauses.contains_key(&id)
+    }
+
     fn remove_clause_by_id(&mut self, id: ID) -> Option<Clause> {
-        self.clauses.remove(&id).map(|c| {
+        let res = self
+            .clauses
+            .remove(&id)
+            .or_else(|| self.unit_clauses.remove(&id))
+            .or_else(|| self.empty_clauses.remove(&id));
+
+        if let Some(c) = &res {
             for l in c.literals() {
                 self.table.unregister(l, id);
             }
-            c
-        })
+        }
+
+        debug_assert!(self.check_sanity());
+
+        res
     }
 
     pub fn remove_clauses_with(&mut self, literal: &Literal) {
         for id in self.table.ids(literal) {
-            assert!(self.clauses.contains_key(&id));
+            assert!(self.contains_id(id));
             self.remove_clause_by_id(id);
         }
 
@@ -94,8 +130,30 @@ impl Clauses {
 
     pub fn remove_literals(&mut self, literal: &Literal) {
         for id in self.table.ids(literal) {
-            assert!(self.clauses.contains_key(&id));
-            self.clauses.get_mut(&id).unwrap().remove_literal(literal);
+            assert!(self.contains_id(id));
+
+            assert!(!self.empty_clauses.contains_key(&id));
+            if self.unit_clauses.contains_key(&id) {
+                debug_assert_eq!(
+                    self.unit_clauses
+                        .get(&id)
+                        .unwrap()
+                        .literals()
+                        .collect::<Vec<_>>(),
+                    vec![literal]
+                );
+                let mut c = self.unit_clauses.remove(&id).unwrap();
+                c.remove_literal(literal);
+                debug_assert!(c.is_empty());
+                self.empty_clauses.insert(id, c);
+            } else {
+                let c = self.clauses.get_mut(&id).unwrap();
+                c.remove_literal(literal);
+                if c.is_unit() {
+                    let c = self.clauses.remove(&id).unwrap();
+                    self.unit_clauses.insert(id, c);
+                }
+            }
         }
         self.table.unregister_all(literal);
 
