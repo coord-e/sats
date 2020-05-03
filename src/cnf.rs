@@ -30,12 +30,12 @@ impl str::FromStr for CNF {
 }
 
 impl CNF {
-    pub fn from_clauses<T>(cls: T) -> CNF
+    pub fn from_clauses<T>(clauses: T) -> CNF
     where
         T: IntoIterator<Item = Clause>,
     {
         CNF {
-            clauses: cls.into_iter().collect(),
+            clauses: clauses.into_iter().collect(),
         }
     }
 
@@ -105,6 +105,15 @@ impl str::FromStr for Clause {
 }
 
 impl Clause {
+    pub fn from_literals<T>(literals: T) -> Clause
+    where
+        T: IntoIterator<Item = Literal>,
+    {
+        Clause {
+            literals: literals.into_iter().collect(),
+        }
+    }
+
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
         self.literals.iter()
     }
