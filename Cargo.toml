@@ -12,3 +12,4 @@ path = "src/satat.rs"
 
 [dependencies]
 itertools = "0.9.0"
+log = "0.4.8"
