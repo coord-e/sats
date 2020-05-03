@@ -71,14 +71,71 @@ impl Clauses {
         let literals_from_clauses: HashSet<_> =
             self.into_iter().flat_map(|c| c.literals()).collect();
         let literals_from_table: HashSet<_> = self.literals().collect();
-        let is_sane = literals_from_clauses == literals_from_table;
-        if !is_sane {
+        if literals_from_clauses != literals_from_table {
             error!(
-                "insane: {:?} {:?} on {:?}",
-                literals_from_clauses, literals_from_table, self
+                "stored literals mismatch: {} vs {}",
+                display_as_set(literals_from_clauses),
+                display_as_set(literals_from_table)
             );
+            return false;
         }
-        is_sane
+
+        let all_clauses_prop = self.clauses.values().all(|c| !c.is_unit() && !c.is_empty());
+        if !all_clauses_prop {
+            error!(
+                "malformed clauses: {}",
+                display_as_set(self.clauses.values())
+            );
+            return false;
+        }
+
+        let all_unit_clauses_prop = self.unit_clauses.values().all(|c| c.is_unit());
+        if !all_unit_clauses_prop {
+            error!(
+                "malformed unit clauses: {}",
+                display_as_set(self.unit_clauses.values())
+            );
+            return false;
+        }
+
+        let all_empty_clauses_prop = self.empty_clauses.values().all(|c| c.is_empty());
+        if !all_empty_clauses_prop {
+            error!(
+                "malformed empty _clauses: {}",
+                display_as_set(self.empty_clauses.values())
+            );
+            return false;
+        }
+
+        let clause_ids: HashSet<_> = self.clauses.keys().collect();
+        let unit_clause_ids = self.unit_clauses.keys().collect();
+        let empty_clause_ids = self.empty_clauses.keys().collect();
+        if !clause_ids.is_disjoint(&unit_clause_ids) {
+            error!(
+                "clause ids and unit clause ids overlap: {} vs {}",
+                display_as_set(self.clauses.keys()),
+                display_as_set(self.unit_clauses.keys())
+            );
+            return false;
+        }
+        if !unit_clause_ids.is_disjoint(&empty_clause_ids) {
+            error!(
+                "unit clause ids and empty clause ids overlap: {} vs {}",
+                display_as_set(self.unit_clauses.keys()),
+                display_as_set(self.empty_clauses.keys())
+            );
+            return false;
+        }
+        if !empty_clause_ids.is_disjoint(&clause_ids) {
+            error!(
+                "empty clause ids and clause ids overlap: {} vs {}",
+                display_as_set(self.empty_clauses.keys()),
+                display_as_set(self.clauses.keys())
+            );
+            return false;
+        }
+
+        return true;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -214,4 +271,21 @@ impl ID {
     fn new(n: usize) -> ID {
         ID(n)
     }
+}
+
+impl fmt::Display for ID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.pad(&format!("c{}", self.0))
+    }
+}
+
+fn display_as_set<T, I>(iter: T) -> String
+where
+    T: IntoIterator<Item = I>,
+    I: string::ToString,
+{
+    format!(
+        "{{ {} }}",
+        iter.into_iter().map(|x| x.to_string()).join(", ")
+    )
 }

@@ -65,6 +65,19 @@ fn interactive() -> Result<(), Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
 
+    let log_level = match opt.verbose {
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        _ => log::LevelFilter::Debug,
+    };
+
+    fern::Dispatch::new()
+        .format(|out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
+        .level(log_level)
+        .chain(std::io::stderr())
+        .apply()
+        .unwrap();
+
     match (opt.cnf, opt.cnf_file) {
         (Some(_), Some(_)) => unreachable!(),
         (Some(cnf), _) => solve_cnf(cnf),
