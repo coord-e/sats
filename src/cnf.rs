@@ -55,18 +55,19 @@ impl CNF {
         self.clauses().filter_map(|c| c.unit())
     }
 
+    // TODO: better API
     pub fn impure_literals(&self) -> impl Iterator<Item = Literal> {
         let mut found = HashMap::with_capacity(self.clauses.len_literals());
         let mut impure = HashSet::new();
         for lit in self.literals() {
             match found.get(lit.variable()) {
-                Some(truth) if lit.truth() == !truth => {
+                Some(sign) if lit.is_negated() == *sign => {
                     impure.insert(lit.clone());
                     impure.insert(lit.negated());
                 }
                 Some(_) => (),
                 None => {
-                    found.insert(lit.variable(), lit.truth());
+                    found.insert(lit.variable(), !lit.is_negated());
                 }
             }
         }
@@ -186,8 +187,8 @@ impl Literal {
         &self.variable
     }
 
-    pub fn truth(&self) -> bool {
-        !self.negated
+    pub fn is_negated(&self) -> bool {
+        self.negated
     }
 
     pub fn negate(&mut self) {

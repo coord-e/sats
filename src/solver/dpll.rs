@@ -19,21 +19,21 @@ fn dpll(mut cnf: CNF) -> Option<Assignment> {
 
     if cnf.impure_literals().next().is_none() {
         for l in cnf.literals() {
-            assignment.assign(l, l.truth());
+            assignment.assign_true(l);
         }
         return Some(assignment);
     }
 
     let unit_clauses: Vec<_> = cnf.unit_clauses().cloned().collect();
     for l in unit_clauses {
-        assignment.assign(&l, l.truth());
+        assignment.assign_true(&l);
         cnf.simplify_true_literal(&l);
     }
 
     let literals: HashSet<_> = cnf.literals().cloned().collect();
     let impure_literals: HashSet<_> = cnf.impure_literals().collect();
     for l in literals.difference(&impure_literals) {
-        assignment.assign(&l, l.truth());
+        assignment.assign_true(&l);
         cnf.simplify_true_literal(&l);
     }
 
@@ -58,12 +58,11 @@ fn choose_literal(cnf: &CNF) -> Option<Literal> {
 fn branch(mut cnf: CNF, l: &Literal) -> Option<Assignment> {
     let mut pos = cnf.clone();
     pos.simplify_true_literal(l);
-    dpll(pos)
-        .map(|a| a.assigned(l.variable(), l.truth()))
-        .or_else(|| {
-            cnf.simplify_true_literal(&l.negated());
-            dpll(cnf).map(|a| a.assigned(l.variable(), !l.truth()))
-        })
+    dpll(pos).map(|a| a.assigned_true(l)).or_else(|| {
+        let neg = l.negated();
+        cnf.simplify_true_literal(&neg);
+        dpll(cnf).map(|a| a.assigned_true(&neg))
+    })
 }
 
 impl Default for DPLL {
