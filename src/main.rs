@@ -3,8 +3,8 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use satat::cnf::CNF;
-use satat::dimacs;
 use satat::solver::{self, solve};
+use satat::{dimacs, eval};
 
 use structopt::StructOpt;
 
@@ -21,24 +21,25 @@ struct Opt {
     cnf: Option<String>,
 }
 
-fn solve_cnf(cnf_string: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error>> {
-    let cnf: CNF = cnf_string.as_ref().trim().parse()?;
-    if let Some(model) = solve::<solver::DPLL>(cnf) {
+fn run_solve(cnf: CNF) {
+    if let Some(model) = solve::<solver::DPLL>(cnf.clone()) {
         println!("SAT {}", model);
+        println!("=> {}", eval::eval(&cnf, &model));
     } else {
         println!("UNSAT");
     }
+}
+
+fn solve_cnf(cnf_string: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error>> {
+    let cnf: CNF = cnf_string.as_ref().trim().parse()?;
+    run_solve(cnf);
     Ok(())
 }
 
 fn solve_cnf_file(cnf_file: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(cnf_file)?;
     let cnf = dimacs::parse(file)?;
-    if let Some(model) = solve::<solver::DPLL>(cnf) {
-        println!("SAT {}", model);
-    } else {
-        println!("UNSAT");
-    }
+    run_solve(cnf);
     Ok(())
 }
 
@@ -54,11 +55,7 @@ fn interactive() -> Result<(), Box<dyn std::error::Error>> {
         io::stdin().read_line(&mut buf)?;
 
         let cnf: CNF = buf.trim().parse()?;
-        if let Some(model) = solve::<solver::DPLL>(cnf) {
-            println!("SAT {}", model);
-        } else {
-            println!("UNSAT");
-        }
+        run_solve(cnf);
     }
 }
 

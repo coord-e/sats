@@ -5,4 +5,5 @@
 pub mod assignment;
 pub mod cnf;
 pub mod dimacs;
+pub mod eval;
 pub mod solver;
