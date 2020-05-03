@@ -13,7 +13,7 @@ fn dpll(mut cnf: CNF) -> Option<Assignment> {
         return Some(assignment);
     }
 
-    if cnf.clauses().any(|c| c.is_empty()) {
+    if cnf.has_empty_clause() {
         return None;
     }
 

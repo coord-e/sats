@@ -142,6 +142,14 @@ impl Clauses {
         self.clauses.is_empty() && self.unit_clauses.is_empty() && self.empty_clauses.is_empty()
     }
 
+    pub fn unit_clauses(&self) -> impl Iterator<Item = &Clause> {
+        self.unit_clauses.values()
+    }
+
+    pub fn empty_clauses(&self) -> impl Iterator<Item = &Clause> {
+        self.empty_clauses.values()
+    }
+
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
         self.table.literals()
     }

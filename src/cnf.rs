@@ -52,7 +52,11 @@ impl CNF {
     }
 
     pub fn unit_clauses(&self) -> impl Iterator<Item = &Literal> {
-        self.clauses().filter_map(|c| c.unit())
+        self.clauses.unit_clauses().map(|c| c.unit().unwrap())
+    }
+
+    pub fn has_empty_clause(&self) -> bool {
+        self.clauses.empty_clauses().next().is_some()
     }
 
     // TODO: better API
