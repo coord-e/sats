@@ -1,5 +1,5 @@
 use std::io::{self, BufRead, BufReader, Read};
-use std::{error, fmt, string};
+use std::{char, error, fmt, string};
 
 use crate::cnf::{Clause, Literal, CNF};
 
@@ -93,7 +93,11 @@ fn parse_clauses(buffer: impl BufRead, preamble: Preamble) -> Result<CNF, ParseD
     let mut literals = Vec::new();
 
     for line in buffer.lines() {
-        for token_str in line?.split(' ') {
+        for token_str in line?.split(char::is_whitespace) {
+            if token_str.is_empty() {
+                continue;
+            }
+
             let token: i32 = token_str
                 .trim()
                 .parse()
