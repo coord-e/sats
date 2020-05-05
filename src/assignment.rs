@@ -6,7 +6,7 @@ use crate::cnf::{Literal, Variable};
 
 use itertools::Itertools;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Truth {
     True,
     False,
@@ -101,6 +101,10 @@ impl Extend<(Variable, Truth)> for Assignment {
 impl Assignment {
     pub fn new() -> Assignment {
         Assignment(HashMap::new())
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
     }
 
     pub fn assign(&mut self, var: &Variable, truth: Truth) {

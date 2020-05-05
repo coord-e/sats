@@ -2,9 +2,6 @@ use std::collections::HashSet;
 
 use crate::assignment::Assignment;
 use crate::cnf::{Literal, CNF};
-use crate::solver::Solver;
-
-pub struct DPLL;
 
 fn dpll(mut cnf: CNF) -> Option<Assignment> {
     let mut assignment = Assignment::new();
@@ -68,14 +65,6 @@ fn branch(mut cnf: CNF, l: &Literal) -> Option<Assignment> {
     })
 }
 
-impl Default for DPLL {
-    fn default() -> DPLL {
-        DPLL
-    }
-}
-
-impl Solver for DPLL {
-    fn solve(&mut self, cnf: CNF) -> Option<Assignment> {
-        dpll(cnf)
-    }
+pub fn solve(cnf: CNF) -> Option<Assignment> {
+    dpll(cnf)
 }
