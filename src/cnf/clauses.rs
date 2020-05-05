@@ -1,6 +1,9 @@
-use std::collections::{hash_map::Values, HashMap, HashSet};
+use std::collections::{
+    hash_map::{self, Values},
+    HashMap, HashSet,
+};
 use std::iter::{Chain, FromIterator};
-use std::{fmt, string};
+use std::string;
 
 use super::clause_id::{ClauseID, ClauseIDGenerator};
 use crate::cnf::{Clause, Literal};
@@ -18,8 +21,11 @@ pub struct Clauses {
 
 impl<'a> IntoIterator for &'a Clauses {
     type Item = &'a Clause;
-    type IntoIter =
-        Chain<Chain<Values<'a, ID, Clause>, Values<'a, ID, Clause>>, Values<'a, ID, Clause>>;
+    #[allow(clippy::type_complexity)]
+    type IntoIter = Chain<
+        Chain<Values<'a, ClauseID, Clause>, Values<'a, ClauseID, Clause>>,
+        Values<'a, ClauseID, Clause>,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.clauses
             .values()
@@ -64,6 +70,23 @@ impl FromIterator<Clause> for Clauses {
         };
         debug_assert!(cls.check_sanity());
         cls
+    }
+}
+
+pub struct ClauseIter<'a> {
+    inner: hash_map::Iter<'a, ClauseID, Clause>,
+}
+
+impl<'a> Iterator for ClauseIter<'a> {
+    type Item = &'a Clause;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(_, c)| c)
+    }
+}
+
+impl<'a> ClauseIter<'a> {
+    pub fn with_id(self) -> impl Iterator<Item = (ClauseID, &'a Clause)> {
+        self.inner.map(|(id, c)| (*id, c))
     }
 }
 
@@ -143,12 +166,22 @@ impl Clauses {
         self.clauses.is_empty() && self.unit_clauses.is_empty() && self.empty_clauses.is_empty()
     }
 
-    pub fn unit_clauses(&self) -> impl Iterator<Item = &Clause> {
-        self.unit_clauses.values()
+    pub fn clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.clauses.iter(),
+        }
     }
 
-    pub fn empty_clauses(&self) -> impl Iterator<Item = &Clause> {
-        self.empty_clauses.values()
+    pub fn unit_clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.unit_clauses.iter(),
+        }
+    }
+
+    pub fn empty_clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.empty_clauses.iter(),
+        }
     }
 
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {

@@ -24,7 +24,10 @@ fn dpll(mut cnf: CNF) -> Option<Assignment> {
         return Some(assignment);
     }
 
-    let unit_clauses: Vec<_> = cnf.unit_clauses().cloned().collect();
+    let unit_clauses: Vec<_> = cnf
+        .unit_clauses()
+        .map(|c| c.unit().unwrap().clone())
+        .collect();
     for l in unit_clauses {
         assignment.assign_true(&l);
         cnf.simplify_true_literal(&l);
