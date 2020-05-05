@@ -3,7 +3,9 @@ use std::{char, fmt, ops, str};
 
 use itertools::Itertools;
 
+mod clause_id;
 mod clauses;
+pub use clause_id::ClauseID;
 
 #[derive(Debug, Clone)]
 pub struct CNF {

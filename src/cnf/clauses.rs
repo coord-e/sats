@@ -2,6 +2,7 @@ use std::collections::{hash_map::Values, HashMap, HashSet};
 use std::iter::{Chain, FromIterator};
 use std::{fmt, string};
 
+use super::clause_id::{ClauseID, ClauseIDGenerator};
 use crate::cnf::{Clause, Literal};
 
 use itertools::Itertools;
@@ -158,13 +159,13 @@ impl Clauses {
         self.table.len()
     }
 
-    fn contains_id(&self, id: ID) -> bool {
+    fn contains_id(&self, id: ClauseID) -> bool {
         self.clauses.contains_key(&id)
             || self.unit_clauses.contains_key(&id)
             || self.empty_clauses.contains_key(&id)
     }
 
-    fn remove_clause_by_id(&mut self, id: ID) -> Option<Clause> {
+    fn remove_clause_by_id(&mut self, id: ClauseID) -> Option<Clause> {
         let res = self
             .clauses
             .remove(&id)
@@ -228,7 +229,7 @@ impl Clauses {
 
 #[derive(Debug, Clone)]
 pub struct Table {
-    inner: HashMap<Literal, HashSet<ID>>,
+    inner: HashMap<Literal, HashSet<ClauseID>>,
 }
 
 impl Table {
@@ -238,7 +239,7 @@ impl Table {
         }
     }
 
-    pub fn register(&mut self, k: &Literal, v: ID) {
+    pub fn register(&mut self, k: &Literal, v: ClauseID) {
         self.inner
             .entry(k.clone())
             .or_insert_with(HashSet::new)
@@ -249,7 +250,7 @@ impl Table {
         self.inner.remove(k);
     }
 
-    pub fn unregister(&mut self, k: &Literal, v: ID) {
+    pub fn unregister(&mut self, k: &Literal, v: ClauseID) {
         if let Some(s) = self.inner.get_mut(k) {
             s.remove(&v);
             if s.is_empty() {
@@ -259,7 +260,7 @@ impl Table {
     }
 
     // TODO: better API
-    pub fn ids(&self, k: &Literal) -> HashSet<ID> {
+    pub fn ids(&self, k: &Literal) -> HashSet<ClauseID> {
         self.inner.get(k).cloned().unwrap_or_default()
     }
 
@@ -269,21 +270,6 @@ impl Table {
 
     pub fn len(&self) -> usize {
         self.inner.len()
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-pub struct ID(usize);
-
-impl ID {
-    fn new(n: usize) -> ID {
-        ID(n)
-    }
-}
-
-impl fmt::Display for ID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad(&format!("c{}", self.0))
     }
 }
 
