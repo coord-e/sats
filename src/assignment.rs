@@ -31,6 +31,31 @@ impl ops::Not for Truth {
     }
 }
 
+impl From<bool> for Truth {
+    #[allow(clippy::match_bool)]
+    fn from(x: bool) -> Truth {
+        match x {
+            true => Truth::True,
+            false => Truth::False,
+        }
+    }
+}
+
+impl Into<bool> for Truth {
+    fn into(self) -> bool {
+        self.as_bool()
+    }
+}
+
+impl Truth {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Truth::True => true,
+            Truth::False => false,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Assignment(HashMap<Variable, Truth>);
 
@@ -83,11 +108,7 @@ impl Assignment {
     }
 
     pub fn assign_true(&mut self, literal: &Literal) {
-        if literal.is_negated() {
-            self.assign(literal.variable(), Truth::False);
-        } else {
-            self.assign(literal.variable(), Truth::True);
-        }
+        self.assign(literal.variable(), Truth::from(!literal.is_negated()));
     }
 
     pub fn assigned_true(mut self, literal: &Literal) -> Assignment {
