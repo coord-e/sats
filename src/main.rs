@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use satat::cnf::CNF;
-use satat::solver::{cdcl, dpll};
+use satat::solver::Solver;
 use satat::{dimacs, eval};
 
 use structopt::StructOpt;
@@ -19,10 +19,13 @@ struct Opt {
 
     #[structopt(short, long, conflicts_with = "cnf_file")]
     cnf: Option<String>,
+
+    #[structopt(short, long, default_value = "CDCL", possible_values = &["CDCL", "DPLL"])]
+    solver: Solver,
 }
 
-fn run_solve(cnf: CNF) {
-    if let Some(model) = cdcl::solve(cnf.clone()) {
+fn run_solve(solver: Solver, cnf: CNF) {
+    if let Some(model) = solver.run(cnf.clone()) {
         // if let Some(model) = dpll::solve(cnf.clone()) {
         println!("SAT {}", model);
         println!("=> {}", eval::eval(&cnf, &model));
@@ -31,20 +34,26 @@ fn run_solve(cnf: CNF) {
     }
 }
 
-fn solve_cnf(cnf_string: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error>> {
+fn solve_cnf(
+    solver: Solver,
+    cnf_string: impl AsRef<str>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let cnf: CNF = cnf_string.as_ref().trim().parse()?;
-    run_solve(cnf);
+    run_solve(solver, cnf);
     Ok(())
 }
 
-fn solve_cnf_file(cnf_file: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+fn solve_cnf_file(
+    solver: Solver,
+    cnf_file: impl AsRef<Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(cnf_file)?;
     let cnf = dimacs::parse(file)?;
-    run_solve(cnf);
+    run_solve(solver, cnf);
     Ok(())
 }
 
-fn interactive() -> Result<(), Box<dyn std::error::Error>> {
+fn interactive(solver: Solver) -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = String::new();
     let mut stdout = io::stdout();
 
@@ -56,7 +65,7 @@ fn interactive() -> Result<(), Box<dyn std::error::Error>> {
         io::stdin().read_line(&mut buf)?;
 
         let cnf: CNF = buf.trim().parse()?;
-        run_solve(cnf);
+        run_solve(solver, cnf);
     }
 }
 
@@ -78,8 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match (opt.cnf, opt.cnf_file) {
         (Some(_), Some(_)) => unreachable!(),
-        (Some(cnf), _) => solve_cnf(cnf),
-        (_, Some(path)) => solve_cnf_file(path),
-        (None, None) => interactive(),
+        (Some(cnf), _) => solve_cnf(opt.solver, cnf),
+        (_, Some(path)) => solve_cnf_file(opt.solver, path),
+        (None, None) => interactive(opt.solver),
     }
 }
