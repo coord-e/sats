@@ -90,6 +90,11 @@ mod tests {
 
     #[test]
     fn test_simple_2() {
-        assert!(solve("A \\/ B /\\ !A \\/ B /\\ A \\/ !B /\\ !A \\/ !B".parse().unwrap()).is_none());
+        assert!(solve(
+            "A \\/ B /\\ !A \\/ B /\\ A \\/ !B /\\ !A \\/ !B"
+                .parse()
+                .unwrap()
+        )
+        .is_none());
     }
 }
