@@ -251,3 +251,33 @@ pub fn solve(cnf: CNF) -> Option<Assignment> {
         SearchResult::Conflict { .. } => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::solve;
+
+    #[test]
+    fn test_excluded_middle() {
+        assert!(solve("!A \\/ A".parse().unwrap()).is_some());
+    }
+
+    #[test]
+    fn test_negated_excluded_middle() {
+        assert!(solve("!A /\\ A".parse().unwrap()).is_none());
+    }
+
+    #[test]
+    fn test_simple_1() {
+        assert!(solve("A \\/ B /\\ A \\/ !B \\/ !A \\/ !B".parse().unwrap()).is_some());
+    }
+
+    #[test]
+    fn test_simple_2() {
+        assert!(solve(
+            "A \\/ B /\\ !A \\/ B /\\ A \\/ !B /\\ !A \\/ !B"
+                .parse()
+                .unwrap()
+        )
+        .is_none());
+    }
+}

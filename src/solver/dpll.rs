@@ -52,7 +52,7 @@ fn dpll(mut cnf: CNF) -> Option<Assignment> {
 }
 
 fn choose_literal(cnf: &CNF) -> Option<Literal> {
-    cnf.literals().next().cloned()
+    cnf.most_occurred_literal().cloned()
 }
 
 fn branch(mut cnf: CNF, l: &Literal) -> Option<Assignment> {
@@ -67,4 +67,29 @@ fn branch(mut cnf: CNF, l: &Literal) -> Option<Assignment> {
 
 pub fn solve(cnf: CNF) -> Option<Assignment> {
     dpll(cnf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::solve;
+
+    #[test]
+    fn test_excluded_middle() {
+        assert!(solve("!A \\/ A".parse().unwrap()).is_some());
+    }
+
+    #[test]
+    fn test_negated_excluded_middle() {
+        assert!(solve("!A /\\ A".parse().unwrap()).is_none());
+    }
+
+    #[test]
+    fn test_simple_1() {
+        assert!(solve("A \\/ B /\\ A \\/ !B \\/ !A \\/ !B".parse().unwrap()).is_some());
+    }
+
+    #[test]
+    fn test_simple_2() {
+        assert!(solve("A \\/ B /\\ !A \\/ B /\\ A \\/ !B /\\ !A \\/ !B".parse().unwrap()).is_none());
+    }
 }

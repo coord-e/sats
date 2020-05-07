@@ -50,7 +50,10 @@ impl fmt::Display for ParseDIMACSError {
 
 impl error::Error for ParseDIMACSError {}
 
-pub fn parse(input: impl Read) -> Result<CNF, ParseDIMACSError> {
+pub fn parse<R>(input: R) -> Result<CNF, ParseDIMACSError>
+where
+    R: Read,
+{
     let mut buffer = BufReader::new(input);
     let preamble = parse_preamble(&mut buffer)?;
     parse_clauses(&mut buffer, preamble)
