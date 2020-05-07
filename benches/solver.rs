@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use satat::assignment::{Assignment, Truth};
-use satat::cnf::CNF;
-use satat::solver::Solver;
-use satat::{dimacs, eval};
+use sats::assignment::{Assignment, Truth};
+use sats::cnf::CNF;
+use sats::solver::Solver;
+use sats::{dimacs, eval};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use log::info;

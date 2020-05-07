@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 
-use satat::dimacs;
+use sats::dimacs;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 

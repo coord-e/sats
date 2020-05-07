@@ -2,9 +2,9 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use satat::cnf::CNF;
-use satat::solver::Solver;
-use satat::{dimacs, eval};
+use sats::cnf::CNF;
+use sats::solver::Solver;
+use sats::{dimacs, eval};
 
 use structopt::StructOpt;
 
