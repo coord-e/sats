@@ -14,8 +14,8 @@ enum Expected {
 }
 
 struct Problem {
-    pub cnf: CNF,
-    pub expected: Expected,
+    cnf: CNF,
+    expected: Expected,
 }
 
 trait AssertSATResult {

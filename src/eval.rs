@@ -9,7 +9,7 @@ pub fn eval(cnf: &CNF, assignment: &Assignment) -> Truth {
         }
     }
 
-    return Truth::True;
+    Truth::True
 }
 
 pub fn eval_clause(clause: &Clause, assignment: &Assignment) -> Truth {
@@ -20,7 +20,7 @@ pub fn eval_clause(clause: &Clause, assignment: &Assignment) -> Truth {
         }
     }
 
-    return Truth::False;
+    Truth::False
 }
 
 pub fn eval_literal(literal: &Literal, assignment: &Assignment) -> Truth {
