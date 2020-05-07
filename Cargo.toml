@@ -8,7 +8,13 @@ edition = "2018"
 name = "satat"
 path = "src/satat.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bench]]
+name = "solver"
+harness = false
+
+[[bench]]
+name = "dimacs"
+harness = false
 
 [dependencies]
 itertools = "0.9.0"
@@ -16,3 +22,7 @@ log = "0.4.8"
 structopt = "0.3.14"
 fern = "0.6.0"
 petgraph = "0.5.0"
+
+[dev-dependencies]
+lazy_static = "1.4.0"
+criterion = "0.3"
