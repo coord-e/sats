@@ -3,6 +3,10 @@ name = "satat"
 version = "0.1.0"
 authors = ["coord.e <me@coord-e.com>"]
 edition = "2018"
+readme = "README.md"
+license = "GPL-2.0"
+homepage = "https://github.com/coord-e/satat"
+repository = "https://github.com/coord-e/satat"
 
 [lib]
 name = "satat"
