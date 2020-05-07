@@ -1,24 +1,49 @@
-use std::collections::{hash_map::Values, HashMap, HashSet};
+use std::collections::{
+    hash_map::{self, Values},
+    HashMap, HashSet,
+};
 use std::iter::{Chain, FromIterator};
-use std::{fmt, string};
+use std::string;
 
+use super::clause_id::{ClauseID, ClauseIDGenerator};
 use crate::cnf::{Clause, Literal};
 
 use itertools::Itertools;
 use log::error;
 
 #[derive(Debug, Clone)]
+struct History {
+    removed_clauses: Vec<Literal>,
+    removed_literals: Vec<Literal>,
+}
+
+impl History {
+    pub fn new() -> Self {
+        History {
+            removed_clauses: Vec::new(),
+            removed_literals: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Clauses {
-    clauses: HashMap<ID, Clause>,
-    unit_clauses: HashMap<ID, Clause>,
-    empty_clauses: HashMap<ID, Clause>,
+    db: HashMap<ClauseID, Clause>,
+    clauses: HashMap<ClauseID, Clause>,
+    unit_clauses: HashMap<ClauseID, Clause>,
+    empty_clauses: HashMap<ClauseID, Clause>,
     table: Table,
+    id_gen: ClauseIDGenerator,
+    history: History,
 }
 
 impl<'a> IntoIterator for &'a Clauses {
     type Item = &'a Clause;
-    type IntoIter =
-        Chain<Chain<Values<'a, ID, Clause>, Values<'a, ID, Clause>>, Values<'a, ID, Clause>>;
+    #[allow(clippy::type_complexity)]
+    type IntoIter = Chain<
+        Chain<Values<'a, ClauseID, Clause>, Values<'a, ClauseID, Clause>>,
+        Values<'a, ClauseID, Clause>,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.clauses
             .values()
@@ -36,16 +61,21 @@ impl FromIterator<Clause> for Clauses {
 
         let (lower, upper) = iter.size_hint();
         let initial_capacity = upper.unwrap_or(lower);
+        let mut db = HashMap::with_capacity(initial_capacity);
         let mut clauses = HashMap::with_capacity(initial_capacity);
         let mut empty_clauses = HashMap::with_capacity(initial_capacity);
         let mut unit_clauses = HashMap::with_capacity(initial_capacity);
         let mut table = Table::with_capacity(initial_capacity);
 
-        for (i, c) in iter.enumerate() {
-            let id = ID::new(i);
+        let mut id_gen = ClauseIDGenerator::new();
+
+        for c in iter {
+            let id = id_gen.next();
             for l in c.literals() {
                 table.register(l, id);
             }
+
+            db.insert(id, c.clone());
             if c.is_empty() {
                 empty_clauses.insert(id, c);
             } else if c.is_unit() {
@@ -56,13 +86,33 @@ impl FromIterator<Clause> for Clauses {
         }
 
         let cls = Clauses {
+            db,
             clauses,
             empty_clauses,
             unit_clauses,
             table,
+            id_gen,
+            history: History::new(),
         };
         debug_assert!(cls.check_sanity());
         cls
+    }
+}
+
+pub struct ClauseIter<'a> {
+    inner: hash_map::Iter<'a, ClauseID, Clause>,
+}
+
+impl<'a> Iterator for ClauseIter<'a> {
+    type Item = &'a Clause;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(_, c)| c)
+    }
+}
+
+impl<'a> ClauseIter<'a> {
+    pub fn with_id(self) -> impl Iterator<Item = (ClauseID, &'a Clause)> {
+        self.inner.map(|(id, c)| (*id, c))
     }
 }
 
@@ -135,19 +185,71 @@ impl Clauses {
             return false;
         }
 
-        return true;
+        true
+    }
+
+    pub fn get(&self, id: ClauseID) -> Option<&Clause> {
+        self.clauses
+            .get(&id)
+            .or_else(|| self.unit_clauses.get(&id))
+            .or_else(|| self.empty_clauses.get(&id))
+    }
+
+    pub fn get_from_db(&self, id: ClauseID) -> Option<&Clause> {
+        self.db.get(&id)
+    }
+
+    pub fn most_occurred_literal(&self) -> Option<&Literal> {
+        self.literals().max_by_key(|l| self.table.ids(l).len())
+    }
+
+    pub fn add(&mut self, mut clause: Clause) {
+        let id = self.id_gen.next();
+        self.db.insert(id, clause.clone());
+
+        for l in &self.history.removed_literals {
+            clause.remove_literal(l);
+        }
+
+        for l in &self.history.removed_clauses {
+            if clause.has_literal(l) {
+                return;
+            }
+        }
+
+        for l in clause.literals() {
+            self.table.register(l, id);
+        }
+
+        if clause.is_empty() {
+            self.empty_clauses.insert(id, clause);
+        } else if clause.is_unit() {
+            self.unit_clauses.insert(id, clause);
+        } else {
+            self.clauses.insert(id, clause);
+        }
     }
 
     pub fn is_empty(&self) -> bool {
         self.clauses.is_empty() && self.unit_clauses.is_empty() && self.empty_clauses.is_empty()
     }
 
-    pub fn unit_clauses(&self) -> impl Iterator<Item = &Clause> {
-        self.unit_clauses.values()
+    pub fn clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.clauses.iter(),
+        }
     }
 
-    pub fn empty_clauses(&self) -> impl Iterator<Item = &Clause> {
-        self.empty_clauses.values()
+    pub fn unit_clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.unit_clauses.iter(),
+        }
+    }
+
+    pub fn empty_clauses(&self) -> ClauseIter {
+        ClauseIter {
+            inner: self.empty_clauses.iter(),
+        }
     }
 
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
@@ -158,13 +260,13 @@ impl Clauses {
         self.table.len()
     }
 
-    fn contains_id(&self, id: ID) -> bool {
+    fn contains_id(&self, id: ClauseID) -> bool {
         self.clauses.contains_key(&id)
             || self.unit_clauses.contains_key(&id)
             || self.empty_clauses.contains_key(&id)
     }
 
-    fn remove_clause_by_id(&mut self, id: ID) -> Option<Clause> {
+    fn remove_clause_by_id(&mut self, id: ClauseID) -> Option<Clause> {
         let res = self
             .clauses
             .remove(&id)
@@ -183,6 +285,8 @@ impl Clauses {
     }
 
     pub fn remove_clauses_with(&mut self, literal: &Literal) {
+        self.history.removed_clauses.push(literal.clone());
+
         for id in self.table.ids(literal) {
             assert!(self.contains_id(id));
             self.remove_clause_by_id(id);
@@ -193,7 +297,10 @@ impl Clauses {
         debug_assert!(self.check_sanity());
     }
 
+    #[allow(clippy::map_entry)]
     pub fn remove_literals(&mut self, literal: &Literal) {
+        self.history.removed_literals.push(literal.clone());
+
         for id in self.table.ids(literal) {
             assert!(self.contains_id(id));
 
@@ -228,7 +335,7 @@ impl Clauses {
 
 #[derive(Debug, Clone)]
 pub struct Table {
-    inner: HashMap<Literal, HashSet<ID>>,
+    inner: HashMap<Literal, HashSet<ClauseID>>,
 }
 
 impl Table {
@@ -238,7 +345,7 @@ impl Table {
         }
     }
 
-    pub fn register(&mut self, k: &Literal, v: ID) {
+    pub fn register(&mut self, k: &Literal, v: ClauseID) {
         self.inner
             .entry(k.clone())
             .or_insert_with(HashSet::new)
@@ -249,7 +356,7 @@ impl Table {
         self.inner.remove(k);
     }
 
-    pub fn unregister(&mut self, k: &Literal, v: ID) {
+    pub fn unregister(&mut self, k: &Literal, v: ClauseID) {
         if let Some(s) = self.inner.get_mut(k) {
             s.remove(&v);
             if s.is_empty() {
@@ -259,7 +366,7 @@ impl Table {
     }
 
     // TODO: better API
-    pub fn ids(&self, k: &Literal) -> HashSet<ID> {
+    pub fn ids(&self, k: &Literal) -> HashSet<ClauseID> {
         self.inner.get(k).cloned().unwrap_or_default()
     }
 
@@ -269,21 +376,6 @@ impl Table {
 
     pub fn len(&self) -> usize {
         self.inner.len()
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-pub struct ID(usize);
-
-impl ID {
-    fn new(n: usize) -> ID {
-        ID(n)
-    }
-}
-
-impl fmt::Display for ID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad(&format!("c{}", self.0))
     }
 }
 

@@ -3,7 +3,9 @@ use std::{char, fmt, ops, str};
 
 use itertools::Itertools;
 
+mod clause_id;
 mod clauses;
+pub use clause_id::ClauseID;
 
 #[derive(Debug, Clone)]
 pub struct CNF {
@@ -39,8 +41,28 @@ impl CNF {
         }
     }
 
-    pub fn clauses(&self) -> impl Iterator<Item = &Clause> {
-        self.clauses.into_iter()
+    pub fn most_occurred_literal(&self) -> Option<&Literal> {
+        self.clauses.most_occurred_literal()
+    }
+
+    pub fn get_from_db(&self, id: ClauseID) -> Option<&Clause> {
+        self.clauses.get_from_db(id)
+    }
+
+    pub fn add_clause(&mut self, clause: Clause) {
+        self.clauses.add(clause);
+    }
+
+    pub fn clauses(&self) -> clauses::ClauseIter {
+        self.clauses.clauses()
+    }
+
+    pub fn unit_clauses(&self) -> clauses::ClauseIter {
+        self.clauses.unit_clauses()
+    }
+
+    pub fn empty_clauses(&self) -> clauses::ClauseIter {
+        self.clauses.empty_clauses()
     }
 
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
@@ -49,10 +71,6 @@ impl CNF {
 
     pub fn is_empty(&self) -> bool {
         self.clauses.is_empty()
-    }
-
-    pub fn unit_clauses(&self) -> impl Iterator<Item = &Literal> {
-        self.clauses.unit_clauses().map(|c| c.unit().unwrap())
     }
 
     pub fn has_empty_clause(&self) -> bool {
@@ -127,6 +145,10 @@ impl Clause {
         self.literals.remove(literal);
     }
 
+    pub fn has_literal(&self, literal: &Literal) -> bool {
+        self.literals.contains(literal)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.literals.is_empty()
     }
@@ -191,6 +213,13 @@ impl str::FromStr for Literal {
 }
 
 impl Literal {
+    pub fn new(variable: Variable, is_negated: bool) -> Literal {
+        Literal {
+            variable,
+            negated: is_negated,
+        }
+    }
+
     pub fn variable(&self) -> &Variable {
         &self.variable
     }

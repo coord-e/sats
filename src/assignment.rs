@@ -6,7 +6,7 @@ use crate::cnf::{Literal, Variable};
 
 use itertools::Itertools;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Truth {
     True,
     False,
@@ -27,6 +27,31 @@ impl ops::Not for Truth {
         match self {
             Truth::True => Truth::False,
             Truth::False => Truth::True,
+        }
+    }
+}
+
+impl From<bool> for Truth {
+    #[allow(clippy::match_bool)]
+    fn from(x: bool) -> Truth {
+        match x {
+            true => Truth::True,
+            false => Truth::False,
+        }
+    }
+}
+
+impl Into<bool> for Truth {
+    fn into(self) -> bool {
+        self.as_bool()
+    }
+}
+
+impl Truth {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Truth::True => true,
+            Truth::False => false,
         }
     }
 }
@@ -78,16 +103,16 @@ impl Assignment {
         Assignment(HashMap::new())
     }
 
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
     pub fn assign(&mut self, var: &Variable, truth: Truth) {
         self.0.insert(var.clone(), truth);
     }
 
     pub fn assign_true(&mut self, literal: &Literal) {
-        if literal.is_negated() {
-            self.assign(literal.variable(), Truth::False);
-        } else {
-            self.assign(literal.variable(), Truth::True);
-        }
+        self.assign(literal.variable(), Truth::from(!literal.is_negated()));
     }
 
     pub fn assigned_true(mut self, literal: &Literal) -> Assignment {

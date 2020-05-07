@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use satat::cnf::CNF;
-use satat::solver::{self, solve};
+use satat::solver::{cdcl, dpll};
 use satat::{dimacs, eval};
 
 use structopt::StructOpt;
@@ -22,7 +22,8 @@ struct Opt {
 }
 
 fn run_solve(cnf: CNF) {
-    if let Some(model) = solve::<solver::DPLL>(cnf.clone()) {
+    if let Some(model) = cdcl::solve(cnf.clone()) {
+        // if let Some(model) = dpll::solve(cnf.clone()) {
         println!("SAT {}", model);
         println!("=> {}", eval::eval(&cnf, &model));
     } else {
