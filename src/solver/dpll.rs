@@ -52,7 +52,7 @@ fn dpll(mut cnf: CNF) -> Option<Assignment> {
 }
 
 fn choose_literal(cnf: &CNF) -> Option<Literal> {
-    cnf.literals().next().cloned()
+    cnf.most_occurred_literal().cloned()
 }
 
 fn branch(mut cnf: CNF, l: &Literal) -> Option<Assignment> {
