@@ -499,7 +499,6 @@ name = "sats"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "either",
  "fern",
  "itertools",
  "lazy_static",

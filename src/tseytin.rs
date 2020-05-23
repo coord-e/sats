@@ -1,7 +1,7 @@
 use crate::cnf::{Clause, Literal, Variable, CNF};
 use crate::expr::Expr;
 
-use either::{Left, Right};
+use itertools::Either::{Left, Right};
 
 #[derive(Clone)]
 pub enum Simple {
