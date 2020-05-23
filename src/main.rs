@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use sats::cnf::CNF;
 use sats::solver::Solver;
-use sats::{dimacs, eval};
+use sats::{dimacs, eval, tseytin};
 
 use structopt::StructOpt;
 
@@ -14,11 +14,20 @@ struct Opt {
     #[structopt(short, long, parse(from_occurrences))]
     verbose: u8,
 
-    #[structopt(short = "f", long, parse(from_os_str), conflicts_with = "cnf")]
+    #[structopt(
+        short = "f",
+        long,
+        parse(from_os_str),
+        conflicts_with = "input",
+        conflicts_with = "expr"
+    )]
     cnf_file: Option<PathBuf>,
 
     #[structopt(short, long, conflicts_with = "cnf_file")]
-    cnf: Option<String>,
+    input: Option<String>,
+
+    #[structopt(short, long, conflicts_with = "cnf_file")]
+    expr: bool,
 
     #[structopt(short, long, default_value = "CDCL", possible_values = &["CDCL", "DPLL"])]
     solver: Solver,
@@ -34,16 +43,28 @@ fn run_solve(solver: Solver, cnf: CNF) {
     }
 }
 
-fn solve_cnf(
+fn get_cnf(input: &str, is_expr: bool) -> Result<CNF, Box<dyn std::error::Error>> {
+    if is_expr {
+        let e = input.trim().parse()?;
+        let cnf = tseytin::to_cnf(e);
+        println!("CNF: {}", &cnf);
+        Ok(cnf)
+    } else {
+        input.trim().parse().map_err(Into::into)
+    }
+}
+
+fn solve(
     solver: Solver,
-    cnf_string: impl AsRef<str>,
+    is_expr: bool,
+    input: impl AsRef<str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let cnf: CNF = cnf_string.as_ref().trim().parse()?;
+    let cnf = get_cnf(input.as_ref(), is_expr)?;
     run_solve(solver, cnf);
     Ok(())
 }
 
-fn solve_cnf_file(
+fn solve_file(
     solver: Solver,
     cnf_file: impl AsRef<Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,7 +74,7 @@ fn solve_cnf_file(
     Ok(())
 }
 
-fn interactive(solver: Solver) -> Result<(), Box<dyn std::error::Error>> {
+fn interactive(solver: Solver, is_expr: bool) -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = String::new();
     let mut stdout = io::stdout();
 
@@ -64,7 +85,7 @@ fn interactive(solver: Solver) -> Result<(), Box<dyn std::error::Error>> {
         buf.clear();
         io::stdin().read_line(&mut buf)?;
 
-        let cnf: CNF = buf.trim().parse()?;
+        let cnf = get_cnf(&buf, is_expr)?;
         run_solve(solver, cnf);
     }
 }
@@ -85,10 +106,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .apply()
         .unwrap();
 
-    match (opt.cnf, opt.cnf_file) {
-        (Some(_), Some(_)) => unreachable!(),
-        (Some(cnf), _) => solve_cnf(opt.solver, cnf),
-        (_, Some(path)) => solve_cnf_file(opt.solver, path),
-        (None, None) => interactive(opt.solver),
+    match (opt.input, opt.cnf_file, opt.expr) {
+        (Some(_), Some(_), _) => unreachable!(),
+        (Some(input), _, is_expr) => solve(opt.solver, is_expr, input),
+        (_, Some(path), false) => solve_file(opt.solver, path),
+        (_, Some(_), true) => unreachable!(),
+        (None, None, is_expr) => interactive(opt.solver, is_expr),
     }
 }

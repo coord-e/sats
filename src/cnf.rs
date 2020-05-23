@@ -212,6 +212,12 @@ impl str::FromStr for Literal {
     }
 }
 
+impl From<Variable> for Literal {
+    fn from(v: Variable) -> Literal {
+        Literal::new(v, false)
+    }
+}
+
 impl Literal {
     pub fn new(variable: Variable, is_negated: bool) -> Literal {
         Literal {
@@ -277,5 +283,12 @@ impl str::FromStr for Variable {
         }
 
         Ok(Variable(s.to_string()))
+    }
+}
+
+impl Variable {
+    /// `Variable::fresh(id)` is fresh iff `id` is unique
+    pub fn fresh(id: usize) -> Variable {
+        Variable(format!("x_{}", id))
     }
 }
